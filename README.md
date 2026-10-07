@@ -34,9 +34,11 @@ This CLI stores as many tokens as you like under short names (`acme`, `globex`, 
 You need Node.js 22.18 or newer.
 
 ```bash
-npm install -g github:WianB/ghl-cli
+npm install -g https://github.com/WianB/ghl-cli/archive/refs/tags/v2026.10.7.tar.gz
 ghl --version
 ```
+
+That installs the 2026-10-07 release. To follow the latest code on `main` instead, use `https://github.com/WianB/ghl-cli/archive/refs/heads/main.tar.gz`. (Installing with `npm install -g github:WianB/ghl-cli` is not recommended: current npm versions can leave a broken link behind for global installs from git.)
 
 Or from a clone, which is handier if you want to change things:
 

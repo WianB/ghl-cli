@@ -25,7 +25,7 @@ Notes for anyone (person or coding agent) changing this code. User-facing docs a
 
 ## Releasing
 
-Versions are dates (`YYYY.M.D`). For a new release: run `npm run spec-check -- --refresh`, fix anything it reports, update `src/version.ts` (version, snapshot date, spec commit from github.com/GoHighLevel/highlevel-api-docs) and `package.json`, add a `CHANGELOG.md` entry, build, commit, tag `vYYYY.M.D`.
+Versions are dates (`YYYY.M.D`). For a new release: run `npm run spec-check -- --refresh`, fix anything it reports, update `src/version.ts` (version, snapshot date, spec commit from github.com/GoHighLevel/highlevel-api-docs) and `package.json`, add a `CHANGELOG.md` entry, update the tag in the README install command, build, commit, tag `vYYYY.M.D`, and create a GitHub release for the tag.
 
 ## Testing against GHL
 
