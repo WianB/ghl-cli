@@ -45,7 +45,7 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/*.test.ts",
     "typecheck": "tsc -p .",
     "spec-check": "node --no-warnings scripts/spec-check.ts",
     "build": "tsc -p tsconfig.build.json"
