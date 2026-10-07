@@ -11,4 +11,5 @@ First public release.
 - Covers all 36 tools of the official hosted HighLevel MCP server.
 - Named profiles for any number of sub-account and agency tokens, with multi-account read queries (`--profiles`, `--all-profiles`).
 - Tokens kept in the macOS Keychain, libsecret on Linux, or an owner-only file.
+- Claude Code plugin (`/plugin marketplace add WianB/ghl-cli`, then `/plugin install ghl@ghl-cli`) with a `ghl` skill, a generated command reference and recipes.
 - `--yes` gate on anything that messages contacts, publishes, enrols workflows, books appointments or deletes; `--dry-run` on every write.

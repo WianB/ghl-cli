@@ -1,0 +1,31 @@
+{
+  "name": "ghl-cli",
+  "description": "Claude Code plugin for ghl-cli, the multi-account GoHighLevel command-line tool.",
+  "owner": {
+    "name": "Wian Botha",
+    "url": "https://github.com/WianB"
+  },
+  "plugins": [
+    {
+      "name": "ghl",
+      "source": "./plugins/ghl",
+      "description": "Lets Claude work in GoHighLevel through the ghl CLI: contacts, pipelines, conversations, calendars, payments, blogs and social, across many sub-accounts and agencies, with dry-run-first safety rules.",
+      "version": "2026.10.7",
+      "author": {
+        "name": "Wian Botha"
+      },
+      "homepage": "https://github.com/WianB/ghl-cli#readme",
+      "repository": "https://github.com/WianB/ghl-cli",
+      "license": "MIT",
+      "keywords": [
+        "gohighlevel",
+        "highlevel",
+        "ghl",
+        "crm",
+        "leadconnector",
+        "agency"
+      ],
+      "category": "productivity"
+    }
+  ]
+}

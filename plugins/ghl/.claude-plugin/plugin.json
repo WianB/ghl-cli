@@ -1,0 +1,11 @@
+{
+  "name": "ghl",
+  "displayName": "GoHighLevel (ghl CLI)",
+  "version": "2026.10.7",
+  "description": "Lets Claude work in GoHighLevel through the ghl CLI: contacts, pipelines, conversations, calendars, payments, blogs and social, across many sub-accounts and agencies, with dry-run-first safety rules.",
+  "author": { "name": "Wian Botha", "url": "https://github.com/WianB" },
+  "homepage": "https://github.com/WianB/ghl-cli#readme",
+  "repository": "https://github.com/WianB/ghl-cli",
+  "license": "MIT",
+  "keywords": ["gohighlevel", "highlevel", "ghl", "crm", "leadconnector", "agency"]
+}

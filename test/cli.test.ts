@@ -283,6 +283,12 @@ test('--version prints the API snapshot date', async () => {
   assert.match(t.out.join(''), /GHL API snapshot \d{4}-\d{2}-\d{2}/);
 });
 
+test('skill command reference matches the CLI', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { COMMANDS_MD, renderCommands } = await import('../scripts/skill-docs.ts');
+  assert.equal(readFileSync(COMMANDS_MD, 'utf8'), renderCommands(), 'Run: npm run skill-docs');
+});
+
 test('every official GHL MCP tool has a CLI replacement', () => {
   const MCP_TOOLS = [
     'blogs_check-url-slug-exists', 'blogs_create-blog-post', 'blogs_get-all-blog-authors-by-location',
