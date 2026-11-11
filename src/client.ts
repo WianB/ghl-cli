@@ -1,10 +1,15 @@
-// Thin HTTP client for the GHL v2 API (services.leadconnectorhq.com).
+// Thin HTTP client for the GHL API (services.leadconnectorhq.com).
 
 export const BASE_URL = 'https://services.leadconnectorhq.com';
 export const DEFAULT_VERSION = '2021-07-28';
 // Calendars and conversations endpoints only accept the older version.
 export const CALENDAR_VERSION = '2021-04-15';
 export const CONVERSATIONS_VERSION = '2021-04-15';
+// Voice AI, Conversation AI and knowledge bases also only accept 2021-04-15.
+export const AI_VERSION = '2021-04-15';
+// GHL's v3 API (spec published 2026-06-19). Same host and paths, selected by
+// this Version header. Some endpoints exist only under v3.
+export const V3_VERSION = 'v3';
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export type Query = Record<string, string | number | boolean | undefined | null>;
@@ -12,6 +17,8 @@ export type Query = Record<string, string | number | boolean | undefined | null>
 export interface RequestOptions {
   query?: Query;
   body?: unknown;
+  // multipart/form-data body (file uploads). Takes the place of `body`.
+  form?: FormData;
   version?: string;
   // A POST that only reads (search endpoints). Runs even under --dry-run.
   read?: boolean;
@@ -36,6 +43,22 @@ export class ApiError extends Error {
     this.method = method;
     this.path = path;
     this.details = details;
+  }
+}
+
+// The request never got an HTTP response (DNS, reset connection, timeout).
+export class NetworkError extends Error {
+  readonly method: string;
+  readonly path: string;
+  constructor(method: string, path: string, cause: unknown, isWrite: boolean) {
+    const c = (cause as { cause?: { code?: string; message?: string } })?.cause;
+    const why = c?.code ?? c?.message ?? (cause as Error)?.message ?? String(cause);
+    super(
+      `Network error on ${method} ${path}: ${why}.` +
+      (isWrite ? ' GHL may or may not have applied it; check before re-running.' : ' Retries ran out; try again.'),
+    );
+    this.method = method;
+    this.path = path;
   }
 }
 
@@ -75,7 +98,7 @@ export class Client {
     const url = buildUrl(path, opts.query);
     const isWrite = method !== 'GET' && !opts.read;
     if (this.cfg.dryRun && isWrite) {
-      return { dryRun: true, method, url, body: opts.body ?? null };
+      return { dryRun: true, method, url, body: opts.form ? describeForm(opts.form) : opts.body ?? null };
     }
 
     const headers: Record<string, string> = {
@@ -83,14 +106,27 @@ export class Client {
       Version: opts.version ?? DEFAULT_VERSION,
       Accept: 'application/json',
     };
-    let payload: string | undefined;
-    if (opts.body !== undefined) {
+    let payload: string | FormData | undefined;
+    if (opts.form) {
+      // fetch sets the multipart Content-Type with its boundary.
+      payload = opts.form;
+    } else if (opts.body !== undefined) {
       headers['Content-Type'] = 'application/json';
       payload = JSON.stringify(opts.body);
     }
 
     for (let attempt = 0; ; attempt++) {
-      const res = await this.fetchImpl(url, { method, headers, body: payload });
+      let res: Response;
+      try {
+        res = await this.fetchImpl(url, { method, headers, body: payload });
+      } catch (e) {
+        // No response at all. Reads are safe to repeat; a write may have landed.
+        if (!isWrite && attempt < this.maxRetries) {
+          await this.sleep(Math.min(1000 * 2 ** attempt, 15000));
+          continue;
+        }
+        throw new NetworkError(method, path, e, isWrite);
+      }
       // Retry rate limits and transient server errors. Writes are only retried
       // on 429, where GHL guarantees the request was not processed.
       const retryable = res.status === 429 || (!isWrite && res.status >= 500);
@@ -111,4 +147,12 @@ export class Client {
       return data;
     }
   }
+}
+
+function describeForm(form: FormData): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of form.entries()) {
+    out[k] = typeof v === 'string' ? v : `<file ${(v as File).name}, ${(v as File).size} bytes>`;
+  }
+  return out;
 }

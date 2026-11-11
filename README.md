@@ -27,18 +27,18 @@ ghl --all-profiles opportunities search --status open
 
 The official HighLevel MCP server and most GHL integrations take one Private Integration Token, which means one sub-account at a time. Switching clients means changing a header and restarting. If you look after twenty sub-accounts, that gets old quickly.
 
-This CLI stores as many tokens as you like under short names (`acme`, `globex`, `agency`) and lets you pick one per command with `-p`, or read from several at once. It also covers more of the API than the MCP does: it has a command for each of the MCP's 36 tools, plus agency-level sub-account and user lists, workflow enrolment, appointment booking, notes, form submissions, invoices and products. For everything else there is `ghl api`, which calls any v2 endpoint directly.
+This CLI stores as many tokens as you like under short names (`acme`, `globex`, `agency`) and lets you pick one per command with `-p`, or read from several at once. It also covers more of the API than the MCP does: it has a command for each of the MCP's 36 tools, plus agency-level sub-account and user lists, workflow enrolment, appointment booking, notes, form submissions, invoices and products. It also has commands for the media library (including file upload), custom values, custom objects, Voice AI call logs, Conversation AI and knowledge bases, and email campaigns. For everything else there is `ghl api`, which calls any endpoint directly.
 
 ## Install
 
 You need Node.js 22.18 or newer.
 
 ```bash
-npm install -g https://github.com/WianB/ghl-cli/archive/refs/tags/v2026.10.7.tar.gz
+npm install -g https://github.com/WianB/ghl-cli/archive/refs/tags/v2026.11.11.tar.gz
 ghl --version
 ```
 
-That installs the 2026-10-07 release. To follow the latest code on `main` instead, use `https://github.com/WianB/ghl-cli/archive/refs/heads/main.tar.gz`. (Installing with `npm install -g github:WianB/ghl-cli` is not recommended: current npm versions can leave a broken link behind for global installs from git.)
+That installs the 2026-11-11 release. To follow the latest code on `main` instead, use `https://github.com/WianB/ghl-cli/archive/refs/heads/main.tar.gz`. (Installing with `npm install -g github:WianB/ghl-cli` is not recommended: current npm versions can leave a broken link behind for global installs from git.)
 
 Or from a clone, which is handier if you want to change things:
 
@@ -80,18 +80,22 @@ Everything prints JSON, so it pipes straight into `jq`. Add `--compact` for sing
 
 | Group | Commands |
 |---|---|
-| `locations` | get, custom-fields, tags, list (agency) |
+| `locations` | get, custom-fields, tags, custom-values, custom-value-create, custom-value-update, custom-value-delete, list (agency) |
 | `contacts` | search, list, get, create, update, upsert, delete, tag-add, tag-remove, tasks, task-add, notes, note-add, workflow-add, workflow-remove |
 | `opportunities` | pipelines, search, get, create, update, status, delete |
 | `conversations` | search, messages, send |
 | `calendars` | list, events, free-slots, appointment, book, appointment-notes |
 | `payments` | transactions, orders, order, invoices, invoice, products |
-| `emails` | templates, template-create |
+| `emails` | templates, template-create, template, template-update, template-delete, campaigns, campaign, campaign-stats |
 | `blogs` | sites, posts, authors, categories, slug-check, post-create, post-update |
 | `social` | accounts, posts, post, post-create, post-edit, stats |
 | `users` | list, search (agency) |
 | `workflows` | list |
 | `forms` | list, submissions |
+| `media` | list, upload, folder-create, delete |
+| `objects` | list, get, search, record, record-create, record-update, record-delete |
+| `voice` | agents, agent, calls, call (Voice AI) |
+| `ai` | agents, knowledge-bases, faqs (Conversation AI) |
 
 The named flags cover the fields people use most. Anything else can be added without waiting for a new release: `--set key=value` adds a body field (values are read as JSON where possible, so `--set dnd=true` sends a boolean), `--data '{...}'` or `--data @file.json` merges a whole JSON object, and `-q key=value` adds a query parameter.
 
@@ -99,6 +103,10 @@ The named flags cover the fields people use most. Anything else can be added wit
 ghl contacts create --first Jane --email jane@example.com --tag lead,website \
   --data '{"customFields":[{"key":"budget","fieldValue":"5000"}]}'
 ```
+
+### GHL's v3 API
+
+HighLevel published a v3 API alongside v2. It uses the same host and paths and is selected with a `Version: v3` header. Most endpoints answer under both, but some exist only under v3, such as email template editing and email campaign stats. The commands that need v3 send it themselves (they say "(v3)" in their help). Any other command, and `ghl api`, takes `--api-version v3` to try it.
 
 When there's no command for an endpoint, call it directly. `{locationId}` is filled in from the profile:
 
@@ -112,7 +120,7 @@ ghl api PUT /contacts/abc123 --data '{"source":"import"}' --yes
 
 A CRM tool that can send SMS should be hard to misuse, so a few rules are baked in.
 
-Anything that reaches a real person or can't be undone refuses to run without `--yes`. That covers sending SMS or email, enrolling a contact in a workflow, booking an appointment, publishing or scheduling a blog post, any social post that isn't a draft, deletes, and raw `ghl api` calls that aren't GETs.
+Anything that reaches a real person or can't be undone refuses to run without `--yes`. That covers sending SMS or email, enrolling a contact in a workflow, booking an appointment, publishing or scheduling a blog post, any social post that isn't a draft, changing a custom value that live templates use, deletes, and raw `ghl api` calls that aren't GETs.
 
 Every write accepts `--dry-run`, which prints the exact method, URL and body instead of sending it. The habit worth building is dry-run first, then `--yes`:
 
@@ -167,9 +175,9 @@ Compared with the official MCP server, the agent gets more endpoints, every clie
 
 ## Versioning and the API snapshot
 
-Releases are named by date. Version `2026.10.7` was built and checked against the GoHighLevel API as published on 2026-10-07, which is [highlevel-api-docs@0af86a4](https://github.com/GoHighLevel/highlevel-api-docs/tree/0af86a4cbd48c66a4071c7e509d1079f9f10ed17). `ghl --version` prints both.
+Releases are named by date. Version `2026.11.11` was built and checked against the GoHighLevel API as published on 2026-11-11, which is [highlevel-api-docs@0af86a4](https://github.com/GoHighLevel/highlevel-api-docs/tree/0af86a4cbd48c66a4071c7e509d1079f9f10ed17), and was tested live against a sub-account the same day. `ghl --version` prints both.
 
-`npm run spec-check` replays every command against GHL's published OpenAPI files and flags any request that uses an endpoint, query parameter or body field the spec doesn't know about. CI runs it on every push against the latest specs, so a change on HighLevel's side shows up as a failing check rather than a confused user.
+`npm run spec-check` replays every command against every OpenAPI file GHL publishes, v2 and v3, and flags any request that uses an endpoint, query parameter, body field or `Version` header the spec doesn't know about. It also lists the v2 endpoints the CLI still uses that the v3 spec no longer has, so a coming retirement is visible early. CI runs it on every push against the latest specs, so a change on HighLevel's side shows up as a failing check rather than a confused user.
 
 ## Agency tokens and sub-account tokens
 

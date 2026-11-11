@@ -111,13 +111,13 @@ export const comms: Cmd[] = [
   {
     group: 'payments', name: 'orders', usage: '[--contact id] [--limit 20] [--offset 0]', summary: 'Orders',
     run: (c) => req(c, 'GET', '/payments/orders', {
-      query: query(c, { contact: ['contactId'], limit: ['limit'], offset: ['offset'], status: ['status'], search: ['search'], 'payment-status': ['paymentStatus'], start: ['startAt'], end: ['endAt'] }, { altId: loc(c), locationId: loc(c) }),
+      query: query(c, { contact: ['contactId'], limit: ['limit'], offset: ['offset'], status: ['status'], search: ['search'], 'payment-status': ['paymentStatus'], start: ['startAt'], end: ['endAt'] }, { altId: loc(c), altType: 'location', locationId: loc(c) }),
     }),
   },
   {
     group: 'payments', name: 'order', usage: '<orderId>', summary: 'One order',
     replaces: ['payments_get-order-by-id'],
-    run: (c) => req(c, 'GET', `/payments/orders/${arg(c, 0, 'orderId')}`, { query: { altId: loc(c), locationId: loc(c) } }),
+    run: (c) => req(c, 'GET', `/payments/orders/${arg(c, 0, 'orderId')}`, { query: { altId: loc(c), altType: 'location', locationId: loc(c) } }),
   },
   {
     group: 'payments', name: 'invoices', usage: '[--status paid|sent|draft|...] [--limit 20] [--offset 0] [--contact id]', summary: 'Invoices',

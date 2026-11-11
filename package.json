@@ -1,6 +1,6 @@
 {
   "name": "ghl-cli",
-  "version": "2026.10.7",
+  "version": "2026.11.11",
   "description": "Unofficial GoHighLevel (HighLevel) CLI for agencies: many sub-account tokens at once, every GHL API v2 endpoint, safe defaults. Zero runtime dependencies.",
   "keywords": [
     "gohighlevel",

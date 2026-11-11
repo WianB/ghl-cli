@@ -1,6 +1,7 @@
-// Email templates, blogs, social media posting.
+// Email templates and campaigns, blogs, social media posting.
 import { readFileSync } from 'node:fs';
 import { UsageError } from '../args.js';
+import { V3_VERSION } from '../client.js';
 import { arg, body, loc, query, req, toIso } from './types.js';
 const BLOG_FIELDS = {
     blog: ['blogId'],
@@ -76,6 +77,52 @@ export const content = [
                 'data-url': ['templateDataUrl'], 'updated-by': ['updatedBy'],
             }, { locationId: loc(c) }),
         }),
+    },
+    // The commands below use GHL's v3 API: these endpoints do not exist under 2021-07-28.
+    {
+        group: 'emails', name: 'template', usage: '<templateId>', summary: 'One email template with its content (v3)',
+        run: (c) => req(c, 'GET', `/emails/locations/${loc(c)}/templates/${arg(c, 0, 'templateId')}`, { version: V3_VERSION }),
+    },
+    {
+        group: 'emails', name: 'template-update', usage: '<templateId> [--name] [--subject] [--preview-text] [--from-name] [--from-email] [--html "<p>..</p>" | --html-file t.html] [--editor-type html] [--archived true|false] [--folder id]', summary: 'Edit an email template (v3)', write: true,
+        run: (c) => {
+            const b = body(c, {
+                name: ['name'], subject: ['subjectLine'], 'preview-text': ['previewText'], 'from-name': ['fromName'], 'from-email': ['fromEmail'],
+                html: ['editorContent'], 'editor-type': ['editorType'], archived: ['archived', 'b'], folder: ['parentFolderId'],
+            });
+            const file = c.opt.str('html-file');
+            if (file)
+                b.editorContent = readFileSync(file, 'utf8');
+            if (!Object.keys(b).length)
+                throw new UsageError('Nothing to change. Pass at least one field.');
+            return req(c, 'PATCH', `/emails/locations/${loc(c)}/templates/${arg(c, 0, 'templateId')}`, { body: b, version: V3_VERSION });
+        },
+    },
+    {
+        group: 'emails', name: 'template-delete', usage: '<templateId> --yes', summary: 'Delete an email template (v3)', write: true, confirm: true,
+        run: (c) => req(c, 'DELETE', `/emails/locations/${loc(c)}/templates/${arg(c, 0, 'templateId')}`, { version: V3_VERSION }),
+    },
+    {
+        group: 'emails', name: 'campaigns', usage: '[--status all|sent|draft|scheduled|...] [--search text] [--limit 20] [--offset 0]', summary: 'Email campaigns (v3)',
+        run: (c) => req(c, 'GET', `/emails/locations/${loc(c)}/campaigns/emails`, {
+            version: V3_VERSION,
+            query: query(c, { status: ['status'], search: ['search'], limit: ['limit'], offset: ['offset'] }),
+        }),
+    },
+    {
+        group: 'emails', name: 'campaign', usage: '<campaignId>', summary: 'One email campaign (v3)',
+        run: (c) => req(c, 'GET', `/emails/locations/${loc(c)}/campaigns/emails/${arg(c, 0, 'campaignId')}`, { version: V3_VERSION }),
+    },
+    {
+        group: 'emails', name: 'campaign-stats', usage: '<sourceId> [--source email-campaigns|workflow-campaigns|bulk-actions] [--step workflowActionId]', summary: 'Opens, clicks, bounces for a sent campaign, workflow email or bulk send; drafts return "Invalid sourceId" (v3)',
+        run: (c) => {
+            const source = c.opt.str('source') ?? 'email-campaigns';
+            if (!['email-campaigns', 'workflow-campaigns', 'bulk-actions'].includes(source))
+                throw new UsageError('--source must be email-campaigns, workflow-campaigns or bulk-actions');
+            return req(c, 'GET', `/emails/locations/${loc(c)}/campaigns/stats/${source}/${arg(c, 0, 'sourceId')}`, {
+                version: V3_VERSION, query: query(c, { step: ['subSourceId'] }),
+            });
+        },
     },
     // ---- blogs
     {

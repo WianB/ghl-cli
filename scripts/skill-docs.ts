@@ -18,7 +18,7 @@ export function renderCommands(): string {
     '',
     'Markers: **[--yes]** refuses to run without `--yes` (reaches real people, publishes, or deletes; may depend on the options given). **[write]** changes data, so it runs on one profile at a time. **[agency]** needs an agency profile.',
     '',
-    'Every command also takes the global options: `-p <profile>`, `--profiles a,b`, `--all-profiles` (reads only), `-l <locationId>`, `-q key=value`, `--set key=value`, `--data <json|@file>`, `--dry-run`, `--yes`, `--compact`.',
+    'Every command also takes the global options: `-p <profile>`, `--profiles a,b`, `--all-profiles` (reads only), `-l <locationId>`, `-q key=value`, `--set key=value`, `--data <json|@file>`, `--dry-run`, `--yes`, `--compact`, `--api-version <v>` (e.g. `v3`).',
   ];
   for (const group of [...new Set(commands.map((c) => c.group))]) {
     lines.push('', `## ${group}`, '');
@@ -32,7 +32,7 @@ export function renderCommands(): string {
     '## api',
     '',
     "- `ghl api <GET|POST|PUT|PATCH|DELETE> <path> [-q k=v] [--data <json|@file>] [--api-version 2021-04-15] [--read] [--yes]`  ",
-    '  Any GHL v2 endpoint. `{locationId}` in the path is filled from the profile. Non-GET needs `--yes` unless `--read` marks it as a search. **[--yes]**',
+    '  Any GHL endpoint (`--api-version v3` for v3-only ones). `{locationId}` in the path is filled from the profile. Non-GET needs `--yes` unless `--read` marks it as a search. **[--yes]**',
     '',
     '## auth',
     '',

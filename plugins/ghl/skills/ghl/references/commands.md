@@ -1,10 +1,10 @@
 # ghl command reference
 
-Generated from ghl 2026.10.7 (GHL API snapshot 2026-10-07). Do not edit by hand; run `npm run skill-docs`.
+Generated from ghl 2026.11.11 (GHL API snapshot 2026-11-11). Do not edit by hand; run `npm run skill-docs`.
 
 Markers: **[--yes]** refuses to run without `--yes` (reaches real people, publishes, or deletes; may depend on the options given). **[write]** changes data, so it runs on one profile at a time. **[agency]** needs an agency profile.
 
-Every command also takes the global options: `-p <profile>`, `--profiles a,b`, `--all-profiles` (reads only), `-l <locationId>`, `-q key=value`, `--set key=value`, `--data <json|@file>`, `--dry-run`, `--yes`, `--compact`.
+Every command also takes the global options: `-p <profile>`, `--profiles a,b`, `--all-profiles` (reads only), `-l <locationId>`, `-q key=value`, `--set key=value`, `--data <json|@file>`, `--dry-run`, `--yes`, `--compact`, `--api-version <v>` (e.g. `v3`).
 
 ## locations
 
@@ -16,13 +16,21 @@ Every command also takes the global options: `-p <profile>`, `--profiles a,b`, `
   All contact tags in the sub-account
 - `ghl locations list [--limit 100] [--skip 0] [--email x]`  
   All sub-accounts in the agency **[agency]**
+- `ghl locations custom-values`  
+  Custom values (account-wide merge fields)
+- `ghl locations custom-value-create --name "Booking link" --value https://...`  
+  Create a custom value **[write]**
+- `ghl locations custom-value-update <id> --name "Booking link" --value https://...`  
+  Change a custom value; every live email, page and workflow using it changes too (GHL needs both name and value) **[--yes]** **[write]**
+- `ghl locations custom-value-delete <id> --yes`  
+  Delete a custom value **[--yes]** **[write]**
 
 ## contacts
 
 - `ghl contacts search [--query text] [--limit 20] [--page 1] [--data filters.json]`  
   Search contacts (name, email, phone)
 - `ghl contacts list [--query text] [--limit 20] [--start-after-id id]`  
-  List contacts (older endpoint, simple paging)
+  List contacts (GHL has deprecated this endpoint; prefer `contacts search`)
 - `ghl contacts get <contactId>`  
   One contact
 - `ghl contacts create [--first] [--last] [--email] [--phone] [--tag a,b] [--data custom.json]`  
@@ -131,6 +139,18 @@ Every command also takes the global options: `-p <profile>`, `--profiles a,b`, `
   Email templates
 - `ghl emails template-create --type html|builder|blank|folder|import --name "Welcome" [--title] [--parent id] [--import-provider mailchimp --import-url url]`  
   Create an email template **[write]**
+- `ghl emails template <templateId>`  
+  One email template with its content (v3)
+- `ghl emails template-update <templateId> [--name] [--subject] [--preview-text] [--from-name] [--from-email] [--html "<p>..</p>" | --html-file t.html] [--editor-type html] [--archived true|false] [--folder id]`  
+  Edit an email template (v3) **[write]**
+- `ghl emails template-delete <templateId> --yes`  
+  Delete an email template (v3) **[--yes]** **[write]**
+- `ghl emails campaigns [--status all|sent|draft|scheduled|...] [--search text] [--limit 20] [--offset 0]`  
+  Email campaigns (v3)
+- `ghl emails campaign <campaignId>`  
+  One email campaign (v3)
+- `ghl emails campaign-stats <sourceId> [--source email-campaigns|workflow-campaigns|bulk-actions] [--step workflowActionId]`  
+  Opens, clicks, bounces for a sent campaign, workflow email or bulk send; drafts return "Invalid sourceId" (v3)
 
 ## blogs
 
@@ -164,10 +184,58 @@ Every command also takes the global options: `-p <profile>`, `--profiles a,b`, `
 - `ghl social stats --profile-id id,id [--platform facebook,instagram]`  
   Last 7 days of social analytics
 
+## media
+
+- `ghl media list [--type file|folder] [--query text] [--folder id] [--limit 20] [--offset 0] [--sort-by createdAt] [--sort-order desc]`  
+  Files and folders in the media library
+- `ghl media upload <file> | --url https://... [--name "Display name"] [--folder id]`  
+  Upload a file (or import one from a URL) to the media library **[write]**
+- `ghl media folder-create --name "Ads" [--folder parentId]`  
+  Create a media folder **[write]**
+- `ghl media delete <fileId> --yes`  
+  Delete a media file or folder **[--yes]** **[write]**
+
+## objects
+
+- `ghl objects list`  
+  Object schemas (standard and custom)
+- `ghl objects get <schemaKey> [--fields true]`  
+  One object schema, optionally with its fields
+- `ghl objects search <schemaKey> [--query text] [--limit 20] [--page 1]`  
+  Search records of an object
+- `ghl objects record <schemaKey> <recordId>`  
+  One record
+- `ghl objects record-create <schemaKey> --prop key=value [--prop ...] [--data record.json]`  
+  Create a record **[write]**
+- `ghl objects record-update <schemaKey> <recordId> --prop key=value [--data record.json]`  
+  Update a record **[write]**
+- `ghl objects record-delete <schemaKey> <recordId> --yes`  
+  Delete a record **[--yes]** **[write]**
+
+## voice
+
+- `ghl voice agents [--query text] [--page 1] [--page-size 10]`  
+  Voice AI agents
+- `ghl voice agent <agentId>`  
+  One Voice AI agent (prompt, voice, actions)
+- `ghl voice calls [--agent id] [--contact id] [--start 2026-11-01] [--end 2026-11-08] [--call-type LIVE|TRIAL] [--page 1] [--page-size 10]`  
+  Voice AI call logs
+- `ghl voice call <callId>`  
+  One call log with transcript and summary
+
+## ai
+
+- `ghl ai agents [--query text] [--limit 20] [--start-after id]`  
+  Conversation AI (chat) agents for the token's sub-account
+- `ghl ai knowledge-bases [--query text] [--limit 20]`  
+  Knowledge bases used by the AI agents
+- `ghl ai faqs <knowledgeBaseId> [--limit 20]`  
+  FAQs in a knowledge base
+
 ## api
 
 - `ghl api <GET|POST|PUT|PATCH|DELETE> <path> [-q k=v] [--data <json|@file>] [--api-version 2021-04-15] [--read] [--yes]`  
-  Any GHL v2 endpoint. `{locationId}` in the path is filled from the profile. Non-GET needs `--yes` unless `--read` marks it as a search. **[--yes]**
+  Any GHL endpoint (`--api-version v3` for v3-only ones). `{locationId}` in the path is filled from the profile. Non-GET needs `--yes` unless `--read` marks it as a search. **[--yes]**
 
 ## auth
 

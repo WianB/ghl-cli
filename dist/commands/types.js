@@ -19,7 +19,9 @@ export function company(ctx) {
     return v;
 }
 export function req(ctx, method, path, opts = {}) {
-    return ctx.client.request(method, path, { ...opts, query: { ...opts.query, ...extraQuery(ctx) } });
+    // --api-version overrides the Version header on any command (e.g. v3).
+    const version = ctx.opt.str('api-version') ?? opts.version;
+    return ctx.client.request(method, path, { ...opts, version, query: { ...opts.query, ...extraQuery(ctx) } });
 }
 // `-q key=value` passes any extra query parameter straight through.
 function extraQuery(ctx) {

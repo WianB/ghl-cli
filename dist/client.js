@@ -1,9 +1,14 @@
-// Thin HTTP client for the GHL v2 API (services.leadconnectorhq.com).
+// Thin HTTP client for the GHL API (services.leadconnectorhq.com).
 export const BASE_URL = 'https://services.leadconnectorhq.com';
 export const DEFAULT_VERSION = '2021-07-28';
 // Calendars and conversations endpoints only accept the older version.
 export const CALENDAR_VERSION = '2021-04-15';
 export const CONVERSATIONS_VERSION = '2021-04-15';
+// Voice AI, Conversation AI and knowledge bases also only accept 2021-04-15.
+export const AI_VERSION = '2021-04-15';
+// GHL's v3 API (spec published 2026-06-19). Same host and paths, selected by
+// this Version header. Some endpoints exist only under v3.
+export const V3_VERSION = 'v3';
 export class ApiError extends Error {
     status;
     method;
@@ -15,6 +20,19 @@ export class ApiError extends Error {
         this.method = method;
         this.path = path;
         this.details = details;
+    }
+}
+// The request never got an HTTP response (DNS, reset connection, timeout).
+export class NetworkError extends Error {
+    method;
+    path;
+    constructor(method, path, cause, isWrite) {
+        const c = cause?.cause;
+        const why = c?.code ?? c?.message ?? cause?.message ?? String(cause);
+        super(`Network error on ${method} ${path}: ${why}.` +
+            (isWrite ? ' GHL may or may not have applied it; check before re-running.' : ' Retries ran out; try again.'));
+        this.method = method;
+        this.path = path;
     }
 }
 function summarise(details) {
@@ -52,7 +70,7 @@ export class Client {
         const url = buildUrl(path, opts.query);
         const isWrite = method !== 'GET' && !opts.read;
         if (this.cfg.dryRun && isWrite) {
-            return { dryRun: true, method, url, body: opts.body ?? null };
+            return { dryRun: true, method, url, body: opts.form ? describeForm(opts.form) : opts.body ?? null };
         }
         const headers = {
             Authorization: `Bearer ${this.cfg.token}`,
@@ -60,12 +78,27 @@ export class Client {
             Accept: 'application/json',
         };
         let payload;
-        if (opts.body !== undefined) {
+        if (opts.form) {
+            // fetch sets the multipart Content-Type with its boundary.
+            payload = opts.form;
+        }
+        else if (opts.body !== undefined) {
             headers['Content-Type'] = 'application/json';
             payload = JSON.stringify(opts.body);
         }
         for (let attempt = 0;; attempt++) {
-            const res = await this.fetchImpl(url, { method, headers, body: payload });
+            let res;
+            try {
+                res = await this.fetchImpl(url, { method, headers, body: payload });
+            }
+            catch (e) {
+                // No response at all. Reads are safe to repeat; a write may have landed.
+                if (!isWrite && attempt < this.maxRetries) {
+                    await this.sleep(Math.min(1000 * 2 ** attempt, 15000));
+                    continue;
+                }
+                throw new NetworkError(method, path, e, isWrite);
+            }
             // Retry rate limits and transient server errors. Writes are only retried
             // on 429, where GHL guarantees the request was not processed.
             const retryable = res.status === 429 || (!isWrite && res.status >= 500);
@@ -88,4 +121,11 @@ export class Client {
             return data;
         }
     }
+}
+function describeForm(form) {
+    const out = {};
+    for (const [k, v] of form.entries()) {
+        out[k] = typeof v === 'string' ? v : `<file ${v.name}, ${v.size} bytes>`;
+    }
+    return out;
 }

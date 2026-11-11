@@ -59,7 +59,7 @@ export const crm = [
         }),
     },
     {
-        group: 'contacts', name: 'list', usage: '[--query text] [--limit 20] [--start-after-id id]', summary: 'List contacts (older endpoint, simple paging)',
+        group: 'contacts', name: 'list', usage: '[--query text] [--limit 20] [--start-after-id id]', summary: 'List contacts (GHL has deprecated this endpoint; prefer `contacts search`)',
         replaces: ['contacts_get-contacts'],
         run: (c) => req(c, 'GET', '/contacts/', {
             query: query(c, { query: ['query'], limit: ['limit'], 'start-after': ['startAfter'], 'start-after-id': ['startAfterId'] }, { locationId: loc(c) }),

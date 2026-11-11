@@ -3,9 +3,9 @@
 //   ghl [-p profile] <group> <command> [args] [options]
 //   ghl --profiles a,b <group> <command>     run a read command on several accounts
 //   ghl auth add|list|remove|default|test     manage accounts (tokens in the OS secret store)
-//   ghl api <METHOD> <path>                   raw call to any GHL v2 endpoint
+//   ghl api <METHOD> <path>                   raw call to any GHL endpoint
 import { Opts, parseArgs, UsageError } from './args.js';
-import { ApiError, Client } from './client.js';
+import { ApiError, Client, NetworkError } from './client.js';
 import { commands, findCommand } from './commands/index.js';
 import { loc, readJson, req } from './commands/types.js';
 import { configPath, defaultStore, loadProfiles, NAME_RE, ProfileError, resolveProfile, saveProfiles } from './profiles.js';
@@ -101,6 +101,8 @@ function fanOutTargets(opt, data) {
 function errorInfo(e) {
     if (e instanceof ApiError)
         return { type: 'api', status: e.status, message: e.message };
+    if (e instanceof NetworkError)
+        return { type: 'network', message: e.message };
     return { type: e instanceof UsageError ? 'usage' : 'error', message: e.message };
 }
 function fail(e, io) {
@@ -120,7 +122,7 @@ const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const rawApi = {
     group: 'api', name: '<METHOD> <path>',
     usage: "[-q key=value] [--data '{...}' | --data @body.json] [--api-version 2021-04-15] [--read] [--yes]",
-    summary: 'Call any GHL v2 endpoint. {locationId} in the path is filled from the profile. Non-GET needs --yes unless --read.',
+    summary: 'Call any GHL endpoint (add --api-version v3 for v3-only ones). {locationId} in the path is filled from the profile. Non-GET needs --yes unless --read.',
     write: false,
     confirm: (c) => (c.args[0] ?? '').toUpperCase() !== 'GET' && !c.opt.has('read'),
     async run(c) {
@@ -134,7 +136,6 @@ const rawApi = {
         const data = c.opt.str('data');
         return req(c, method, path, {
             body: data ? readJson(data) : undefined,
-            version: c.opt.str('api-version'),
             read: c.opt.has('read'),
         });
     },
@@ -296,6 +297,7 @@ Global options
   -q key=value               extra query parameter (repeatable)
   --set key=value            extra body field (repeatable, JSON values allowed)
   -d, --data '{..}' | @file  extra body fields as JSON
+  --api-version <v>          override the Version header (e.g. v3)
   --dry-run                  show write requests instead of sending them
   --yes                      required for sending, publishing, workflows, deletes
   --compact                  one-line JSON

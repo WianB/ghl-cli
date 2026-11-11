@@ -38,7 +38,7 @@ function setup(opts: { status?: number; reply?: unknown; profiles?: ProfileFile;
       method: init?.method ?? 'GET',
       url: new URL(String(input)),
       headers: init?.headers as Record<string, string>,
-      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      body: init?.body instanceof FormData ? Object.fromEntries(init.body.entries()) : init?.body ? JSON.parse(String(init.body)) : undefined,
     });
     const status = opts.status ?? 200;
     return new Response(JSON.stringify(opts.reply ?? { ok: true }), { status, headers: { 'content-type': 'application/json' } });
@@ -183,13 +183,88 @@ test('opportunity update never sends contactId', async () => {
   assert.deepEqual(t.calls[0].body, { pipelineStageId: 'S2' });
 });
 
-test('orders send altId and locationId, not altType', async () => {
+test('orders send altType=location (GHL 422s without it since late 2026)', async () => {
   const t = setup();
   await t.run(['payments', 'order', 'ORD1']);
-  const q = t.calls[0].url.searchParams;
-  assert.equal(q.get('altId'), 'LOC_ECO');
-  assert.equal(q.get('locationId'), 'LOC_ECO');
-  assert.equal(q.has('altType'), false);
+  await t.run(['payments', 'orders']);
+  for (const c of t.calls) {
+    assert.equal(c.url.searchParams.get('altId'), 'LOC_ECO');
+    assert.equal(c.url.searchParams.get('altType'), 'location');
+  }
+});
+
+test('v3 commands send Version v3; --api-version overrides any command', async () => {
+  const t = setup();
+  await t.run(['emails', 'campaigns', '--status', 'sent']);
+  assert.equal(t.calls[0].headers.Version, 'v3');
+  assert.equal(t.calls[0].url.pathname, '/emails/locations/LOC_ECO/campaigns/emails');
+  await t.run(['emails', 'campaign-stats', 'CMP1']);
+  assert.equal(t.calls[1].url.pathname, '/emails/locations/LOC_ECO/campaigns/stats/email-campaigns/CMP1');
+  await t.run(['opportunities', 'pipelines', '--api-version', 'v3']);
+  assert.equal(t.calls[2].headers.Version, 'v3');
+  await t.run(['api', 'GET', '/locations/{locationId}', '--api-version', '2021-04-15']);
+  assert.equal(t.calls[3].headers.Version, '2021-04-15');
+});
+
+test('email template update refuses an empty change, delete needs --yes', async () => {
+  const t = setup();
+  assert.equal(await t.run(['emails', 'template-update', 'T1']), 2);
+  assert.equal(await t.run(['emails', 'template-delete', 'T1']), 2);
+  assert.equal(await t.run(['emails', 'template-update', 'T1', '--subject', 'Hi', '--archived', 'false']), 0);
+  assert.equal(t.calls[0].method, 'PATCH');
+  assert.deepEqual(t.calls[0].body, { subjectLine: 'Hi', archived: false });
+});
+
+test('media upload sends a multipart form; --url imports instead', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const file = join(mkdtempSync(join(tmpdir(), 'ghl-test-')), 'hero.png');
+  writeFileSync(file, 'png-bytes');
+  const t = setup();
+  assert.equal(await t.run(['media', 'upload', file, '--folder', 'F1']), 0);
+  const b = t.calls[0].body as Record<string, unknown>;
+  assert.equal(t.calls[0].url.pathname, '/medias/upload-file');
+  assert.equal(b.hosted, 'false');
+  assert.equal(b.parentId, 'F1');
+  assert.equal((b.file as File).name, 'hero.png');
+  assert.equal(t.calls[0].headers['Content-Type'], undefined);
+
+  await t.run(['media', 'upload', '--url', 'https://x.co/a.jpg', '--name', 'A']);
+  assert.deepEqual(t.calls[1].body, { hosted: 'true', fileUrl: 'https://x.co/a.jpg', name: 'A' });
+
+  assert.equal(await t.run(['media', 'upload', join(tmpdir(), 'no-such-file.png')]), 2);
+  assert.equal(await t.run(['media', 'delete', 'M1']), 2);
+  assert.equal(t.calls.length, 2);
+});
+
+test('media upload --dry-run describes the file instead of sending it', async () => {
+  const t = setup();
+  assert.equal(await t.run(['media', 'upload', '--url', 'https://x.co/a.jpg', '--dry-run']), 0);
+  assert.equal(t.calls.length, 0);
+  assert.deepEqual(json(t.out).body, { hosted: 'true', fileUrl: 'https://x.co/a.jpg' });
+});
+
+test('custom values need name and value; objects take --prop', async () => {
+  const t = setup();
+  assert.equal(await t.run(['locations', 'custom-value-update', 'CV1', '--value', 'x']), 2);
+  assert.equal(await t.run(['locations', 'custom-value-update', 'CV1', '--name', 'Link', '--value', 'https://x.co']), 2);
+  await t.run(['locations', 'custom-value-update', 'CV1', '--name', 'Link', '--value', 'https://x.co', '--yes']);
+  assert.equal(t.calls[0].method, 'PUT');
+  assert.deepEqual(t.calls[0].body, { name: 'Link', value: 'https://x.co' });
+  await t.run(['objects', 'record-create', 'custom_objects.rooms', '--prop', 'name=Cabin 1', '--prop', 'beds=2']);
+  assert.deepEqual(t.calls[1].body, { locationId: 'LOC_ECO', properties: { name: 'Cabin 1', beds: '2' } });
+  await t.run(['objects', 'record', 'custom_objects.rooms', 'R1']);
+  assert.equal(t.calls[2].url.pathname, '/objects/custom_objects.rooms/records/R1');
+});
+
+test('voice AI and knowledge bases use API version 2021-04-15', async () => {
+  const t = setup();
+  await t.run(['voice', 'calls', '--start', '2026-11-01T00:00:00Z']);
+  await t.run(['ai', 'faqs', 'KB1']);
+  assert.deepEqual(t.calls.map((c) => c.headers.Version), ['2021-04-15', '2021-04-15']);
+  assert.equal(t.calls[0].url.searchParams.get('startDate'), String(Date.parse('2026-11-01T00:00:00Z')));
+  assert.equal(t.calls[1].url.searchParams.get('knowledgeBaseId'), 'KB1');
 });
 
 test('read-only POST endpoints still run under --dry-run', async () => {
@@ -233,6 +308,26 @@ test('429 is retried, then succeeds', async () => {
   });
   assert.deepEqual(await client.request('POST', '/contacts/'), { ok: 1 });
   assert.equal(n, 3);
+});
+
+test('network errors are retried on reads, never on writes, and name the cause', async () => {
+  const { Client, NetworkError } = await import('../src/client.ts');
+  const drop = () => Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } });
+  let n = 0;
+  const flaky = new Client({
+    token: 't', sleep: async () => {},
+    fetchImpl: (async () => {
+      if (++n < 3) throw drop();
+      return new Response('{"ok":1}', { status: 200 });
+    }) as typeof fetch,
+  });
+  assert.deepEqual(await flaky.request('GET', '/contacts/'), { ok: 1 });
+  assert.equal(n, 3);
+
+  let w = 0;
+  const write = new Client({ token: 't', sleep: async () => {}, fetchImpl: (async () => { w++; throw drop(); }) as typeof fetch });
+  await assert.rejects(write.request('POST', '/contacts/'), (e: Error) => e instanceof NetworkError && /ECONNRESET/.test(e.message) && /may or may not/.test(e.message));
+  assert.equal(w, 1);
 });
 
 test('auth add verifies the token, stores it, and sets the first default', async () => {
